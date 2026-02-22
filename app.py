@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, make_response
 from flask_cors import CORS
 import yt_dlp
 import os
@@ -6,33 +6,32 @@ import uuid
 import re
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 
-def format_duration(seconds):
-    if not seconds:
-        return None
-    seconds = int(seconds)
-    h = seconds // 3600
-    m = (seconds % 3600) // 60
-    s = seconds % 60
-    if h > 0:
-        return f"{h:02}:{m:02}:{s:02}"
-    return f"{m:02}:{s:02}"
-
-
+# ================= ROOT =================
 @app.route("/")
 def home():
     return "YouTube PRO Backend Running"
 
 
-# ========= VIDEO INFO =========
+# ================= HANDLE PREFLIGHT =================
+@app.route("/<path:path>", methods=["OPTIONS"])
+def options_handler(path):
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+    return response
+
+
+# ================= VIDEO INFO =================
 @app.route("/info", methods=["POST"])
 def info():
-    data = request.json
+    data = request.get_json()
     url = data.get("url")
 
     if not url:
@@ -49,29 +48,29 @@ def info():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
-            return jsonify({
-                "title": info.get("title"),
-                "thumbnail": info.get("thumbnail"),
-                "duration": format_duration(info.get("duration"))
-            })
+        return jsonify({
+            "title": info.get("title"),
+            "thumbnail": info.get("thumbnail"),
+            "duration": info.get("duration")
+        })
 
-    except Exception:
+    except Exception as e:
         return jsonify({"error": "Video fetch failed"}), 500
 
 
-# ========= BEST VIDEO =========
+# ================= BEST VIDEO =================
 @app.route("/best", methods=["POST"])
 def best():
-    data = request.json
+    data = request.get_json()
     url = data.get("url")
 
-    filename = re.sub(r'[^\w\-_. ]', '_', str(uuid.uuid4())) + ".mp4"
+    filename = re.sub(r"[^\w\-_. ]", "_", str(uuid.uuid4())) + ".mp4"
     filepath = os.path.join(DOWNLOAD_FOLDER, filename)
 
     ydl_opts = {
         "format": "bestvideo+bestaudio/best",
-        "outtmpl": filepath,
         "merge_output_format": "mp4",
+        "outtmpl": filepath,
         "quiet": True,
         "noplaylist": True,
         "nocheckcertificate": True
@@ -83,17 +82,17 @@ def best():
 
         return send_file(filepath, as_attachment=True)
 
-    except Exception:
+    except Exception as e:
         return jsonify({"error": "Video download failed"}), 500
 
 
-# ========= MP3 =========
+# ================= MP3 =================
 @app.route("/mp3", methods=["POST"])
 def mp3():
-    data = request.json
+    data = request.get_json()
     url = data.get("url")
 
-    filename = re.sub(r'[^\w\-_. ]', '_', str(uuid.uuid4())) + ".mp3"
+    filename = re.sub(r"[^\w\-_. ]", "_", str(uuid.uuid4())) + ".mp3"
     filepath = os.path.join(DOWNLOAD_FOLDER, filename)
 
     ydl_opts = {
@@ -115,7 +114,7 @@ def mp3():
 
         return send_file(filepath, as_attachment=True)
 
-    except Exception:
+    except Exception as e:
         return jsonify({"error": "Audio extraction failed"}), 500
 
 
