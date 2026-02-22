@@ -31,6 +31,7 @@ def info():
         "noplaylist": True,
         "nocheckcertificate": True,
         "extract_flat": False,
+        "cookiefile": "cookies.txt",
         "http_headers": {
             "User-Agent": "Mozilla/5.0"
         }
