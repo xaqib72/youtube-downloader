@@ -1,31 +1,19 @@
-from flask import Flask, request, jsonify, send_file, make_response
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import yt_dlp
 import os
 import uuid
-import re
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 
-# ================= ROOT =================
 @app.route("/")
 def home():
-    return "YouTube PRO Backend Running"
-
-
-# ================= HANDLE PREFLIGHT =================
-@app.route("/<path:path>", methods=["OPTIONS"])
-def options_handler(path):
-    response = make_response()
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-    return response
+    return "YouTube Backend Running"
 
 
 # ================= VIDEO INFO =================
@@ -34,14 +22,10 @@ def info():
     data = request.get_json()
     url = data.get("url")
 
-    if not url:
-        return jsonify({"error": "No URL provided"}), 400
-
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
-        "noplaylist": True,
-        "nocheckcertificate": True
+        "noplaylist": True
     }
 
     try:
@@ -58,13 +42,13 @@ def info():
         return jsonify({"error": "Video fetch failed"}), 500
 
 
-# ================= BEST VIDEO =================
+# ================= BEST VIDEO (HD AUTO MERGE) =================
 @app.route("/best", methods=["POST"])
 def best():
     data = request.get_json()
     url = data.get("url")
 
-    filename = re.sub(r"[^\w\-_. ]", "_", str(uuid.uuid4())) + ".mp4"
+    filename = str(uuid.uuid4()) + ".mp4"
     filepath = os.path.join(DOWNLOAD_FOLDER, filename)
 
     ydl_opts = {
@@ -72,8 +56,7 @@ def best():
         "merge_output_format": "mp4",
         "outtmpl": filepath,
         "quiet": True,
-        "noplaylist": True,
-        "nocheckcertificate": True
+        "noplaylist": True
     }
 
     try:
@@ -92,7 +75,7 @@ def mp3():
     data = request.get_json()
     url = data.get("url")
 
-    filename = re.sub(r"[^\w\-_. ]", "_", str(uuid.uuid4())) + ".mp3"
+    filename = str(uuid.uuid4()) + ".mp3"
     filepath = os.path.join(DOWNLOAD_FOLDER, filename)
 
     ydl_opts = {
@@ -104,8 +87,7 @@ def mp3():
             "preferredquality": "192",
         }],
         "quiet": True,
-        "noplaylist": True,
-        "nocheckcertificate": True
+        "noplaylist": True
     }
 
     try:
@@ -115,7 +97,7 @@ def mp3():
         return send_file(filepath, as_attachment=True)
 
     except Exception as e:
-        return jsonify({"error": "Audio extraction failed"}), 500
+        return jsonify({"error": "MP3 extraction failed"}), 500
 
 
 if __name__ == "__main__":
