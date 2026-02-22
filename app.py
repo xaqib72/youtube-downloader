@@ -10,9 +10,11 @@ CORS(app)
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+
 @app.route("/")
 def home():
     return "YouTube Downloader API is Running"
+
 
 @app.route("/info", methods=["POST"])
 def info():
@@ -24,25 +26,29 @@ def info():
 
     ydl_opts = {
         'quiet': True,
-        'skip_download': True
+        'skip_download': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android']
+            }
+        }
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            formats = [
-                {
-                    "format_id": f["format_id"],
-                    "ext": f["ext"],
-                    "quality": f.get("format_note"),
-                }
-                for f in info["formats"]
-                if f.get("format_note") in ["360p", "480p", "720p", "1080p"]
-            ]
+
+            formats = []
+            for f in info.get("formats", []):
+                if f.get("height") in [360, 480, 720, 1080] and f.get("ext") == "mp4":
+                    formats.append({
+                        "format_id": f["format_id"],
+                        "quality": f"{f.get('height')}p"
+                    })
 
             return jsonify({
-                "title": info["title"],
-                "thumbnail": info["thumbnail"],
+                "title": info.get("title"),
+                "thumbnail": info.get("thumbnail"),
                 "formats": formats
             })
 
@@ -65,7 +71,12 @@ def download():
     ydl_opts = {
         'format': format_id,
         'outtmpl': filepath,
-        'quiet': True
+        'quiet': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android']
+            }
+        }
     }
 
     try:
