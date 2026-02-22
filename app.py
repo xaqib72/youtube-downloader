@@ -22,10 +22,18 @@ def info():
     data = request.get_json()
     url = data.get("url")
 
+    if not url:
+        return jsonify({"error": "No URL provided"}), 400
+
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
-        "noplaylist": True
+        "noplaylist": True,
+        "nocheckcertificate": True,
+        "extract_flat": False,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0"
+        }
     }
 
     try:
@@ -35,10 +43,12 @@ def info():
         return jsonify({
             "title": info.get("title"),
             "thumbnail": info.get("thumbnail"),
-            "duration": info.get("duration")
+            "duration": info.get("duration"),
+            "formats": info.get("formats", [])[:8]
         })
 
     except Exception as e:
+        print("YT-DLP ERROR:", str(e))   # will show in Render logs
         return jsonify({"error": "Video fetch failed"}), 500
 
 
